@@ -91,3 +91,27 @@ def register():
             "message": "Failed to register user", "error": str(e)}), 500
     finally:
         conn.close()
+
+
+@auth_bp.route("/verify-email/<token>", methods=["GET"])
+def verify_email(token):
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                            SELECT id FROM users 
+                            WHERE verification_token = %
+                            """, (token,))
+
+            user = cursor.fetchone()
+            if not user:
+                return jsonify({"success": False, "message": "User not found!"})
+
+            cursor.execute("""
+                            UPDATE users SET is_verified = TRUE,
+                            verification_token = NULL WHERE id = %s
+                        """, (user["id"],))
+            return jsonify({"success": True, "message": "User Verified successfully"})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: ({str(e)})"})
